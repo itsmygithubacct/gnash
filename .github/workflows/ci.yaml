@@ -34,12 +34,22 @@ jobs:
           toolchain: stable
           components: clippy,rustfmt
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - name: Install validation tools
+      - name: Install dependency auditor
         uses: taiki-e/install-action@1ed6d7be6168f6c9046541087ff549b6bc581fdf # v2.87.2
         with:
-          tool: cargo-deny@0.20.2,actionlint@1.7.11
+          tool: cargo-deny@0.20.2
+      - name: Install workflow linter
+        run: |
+          curl --fail --location --retry 3 \
+            --output "$RUNNER_TEMP/actionlint.tar.gz" \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.11/actionlint_1.7.11_linux_amd64.tar.gz
+          printf '%s  %s\n' \
+            900919a84f2229bac68ca9cd4103ea297abc35e9689ebb842c6e34a3d1b01b0a \
+            "$RUNNER_TEMP/actionlint.tar.gz" | sha256sum --check
+          tar --extract --gzip --file "$RUNNER_TEMP/actionlint.tar.gz" \
+            --directory "$RUNNER_TEMP" actionlint
       - name: Check workflows
-        run: actionlint
+        run: '"$RUNNER_TEMP/actionlint"'
       - name: Check formatting
         run: cargo fmt --all --check
       - name: Lint workspace
