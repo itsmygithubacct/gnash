@@ -1,0 +1,19 @@
+[package]
+authors.workspace = true
+publish.workspace = true
+name = "gnash-native"
+version = "0.1.0"
+description = "Versioned native command module ABI for gnash"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "../README.md"
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+libc = "0.2.183"
+libloading = "0.8.9"

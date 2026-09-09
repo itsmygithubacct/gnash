@@ -1,0 +1,16 @@
+utf8-chars 3.0.7
+Author: warlock
+Upstream: https://github.com/A1-Triard/utf8-chars
+Revision: 9e35858ccf96914d4eb00c8d31be907e6487cbe4
+
+The upstream Cargo.toml at this revision declares:
+
+    license = "MIT OR Apache-2.0"
+
+Gnash uses the Apache-2.0 option; the full terms accompany this notice in
+Apache-2.0.txt. No standalone license or NOTICE file is present in the
+published crate or its repository at this revision.
+
+This is a prepared attribution and license-declaration extract, not an
+unaltered upstream manifest. The author's published handle is retained;
+contact details and unrelated package metadata are omitted.

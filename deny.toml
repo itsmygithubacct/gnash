@@ -1,0 +1,111 @@
+[graph]
+# If 1 or more target triples (and optionally, target_features) are specified,
+# only the specified targets will be checked when running `cargo deny check`.
+# This means, if a particular package is only ever used as a target specific
+# dependency, such as, for example, the `nix` crate only being used via the
+# `target_family = "unix"` configuration, that only having windows targets in
+# this list would mean the nix crate, as well as any of its exclusive
+# dependencies not shared by any other crates, would be ignored, as the target
+# list here is effectively saying which targets you are building for.
+targets = []
+#exclude = []
+all-features = false
+no-default-features = false
+#features = []
+
+[output]
+feature-depth = 1
+
+# This section is considered when running `cargo deny check advisories`
+# More documentation for the advisories section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/advisories/cfg.html
+[advisories]
+version = 2
+yanked = "deny"
+#db-path = "$CARGO_HOME/advisory-dbs"
+#db-urls = ["https://github.com/rustsec/advisory-db"]
+ignore = [
+    # RUSTSEC-2026-0253: unsound `LruCache::pop()` in lru 0.16.4, which we reach only
+    # via num-prime -> uu_factor (the `coreutils.factor` builtin).
+    #
+    # Unreachable for us, on three independent grounds:
+    #   1. num-prime never calls `pop()` at all -- its only cache operations are
+    #      `get()` and `put()` (see num-prime's src/buffer.rs). The dangling pointers
+    #      the advisory describes originate solely inside `pop()`.
+    #   2. That cache is `LruCache<(u64, usize), u64>`; the key is `Copy` with no
+    #      `Drop` impl, so the panicking-`Drop`-during-`pop()` precondition cannot hold.
+    #   3. The advisory requires unwinding plus `catch_unwind`. Our release profile
+    #      sets `panic = "abort"`, and our only `catch_unwind` lives in
+    #      brush-test-harness, not in shipped shell code.
+    #
+    # Not fixable by upgrading: num-prime pins `lru = "0.16.3"` (^0.16) and the fix
+    # landed only in lru 0.18.2, with no 0.16.x backport (0.16.4 ends that line). So
+    # `cargo update -p lru` is a no-op here, despite what the diagnostic suggests.
+    #
+    # Upstream is aware but stalled: uutils/num-prime#105 is open, and its lru 0.18
+    # bump (uutils/num-prime#77) was closed unmerged. Remove this entry once num-prime
+    # ships an `lru >=0.18.2` bump and uu_factor picks it up.
+    { id = "RUSTSEC-2026-0253", reason = "unreachable: num-prime never calls pop(); its Copy key has no Drop impl; release builds are panic=abort" },
+]
+#git-fetch-with-cli = true
+
+# This section is considered when running `cargo deny check licenses`
+# More documentation for the licenses section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html
+[licenses]
+version = 2
+# List of explicitly allowed licenses
+# See https://spdx.org/licenses/ for list of possible licenses
+# [possible values: any SPDX 3.11 short identifier (+ optional exception)].
+allow = [
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "NCSA",
+    "Unicode-3.0",
+    "WTFPL",
+    "Zlib",
+]
+# The confidence threshold for detecting a license from license text.
+# The higher the value, the more closely the license text must be to the
+# canonical license text of a valid SPDX license file.
+# [possible values: any between 0.0 and 1.0].
+confidence-threshold = 0.8
+# Allow 1 or more licenses on a per-crate basis, so that particular licenses
+# aren't accepted for every possible crate as with the normal allow list
+exceptions = []
+
+[licenses.private]
+ignore = false
+registries = []
+
+# This section is considered when running `cargo deny check bans`.
+# More documentation about the 'bans' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
+[bans]
+multiple-versions = "allow"
+wildcards = "allow"
+highlight = "all"
+workspace-default-features = "allow"
+external-default-features = "allow"
+# List of crates that are allowed. Use with care!
+allow = []
+# List of crates to deny
+deny = []
+
+# This section is considered when running `cargo deny check sources`.
+# More documentation about the 'sources' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+
+[sources.allow-org]
+# 1 or more github.com organizations to allow git sources for
+github = []

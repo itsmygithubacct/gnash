@@ -1,0 +1,5 @@
+[workspace]
+# Source and complete Linux archives are distributed through GitHub.
+publish = false
+git_release_enable = false
+changelog_update = false

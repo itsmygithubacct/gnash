@@ -1,0 +1,246 @@
+{
+  "repository": "https://github.com/itsmygithubacct/bash-os",
+  "revision": "3ca562b0eb97060e29cf0f971369dea93792d4b3",
+  "license": "MIT",
+  "files": {
+    "LICENSE": "42e3e90ed64a2d0c9f1f60f84030592d8260e8dc322a9de1ce8731c255d4ab9d",
+    "loadables/common/bl-output.h": "7d213772ed8f19cc0e1a53f2c27aedb2fde49fba092b97fbcbca73d510123fd4",
+    "loadables/chgrp.c": "0fe499250cbb353116727261fe98460b7c23511c955807d6fe62c27b1d66d416",
+    "loadables/chown.c": "a715f274dbc51985c4e1ca821cf17069204d4325f67316b0459fb193809053e6",
+    "loadables/comm.c": "d3ea96345b3de8318faef6d624f7193cea380d18a84596d70fb000ed1c57e1c0",
+    "loadables/cp.c": "7d772891d0653a8a0ee13c72687553e68658affd0140ed16b0b83603098fe19d",
+    "loadables/csplit.c": "a37bd099c3cbcd84383f0e93b2dcd952fc2890fe4c23a8b92c73b79805f7b2bf",
+    "loadables/date.c": "61d55e836b884078e7b67fe092c7189fd8844b1e2df7637bdf7c33ca507efad5",
+    "loadables/dd.c": "90e1bae7c231e21d074ef19173aa72afb5c532de40c8a194afa7c249dc48afff",
+    "loadables/df.c": "708d5c489c93a1a7a22584b77f4ec43187057d201063bf6644ef05201a22be09",
+    "loadables/du.c": "b59822933703323566b40e4b5b31d6c3978959cf3dc127f345cdf63a0bb55f46",
+    "loadables/expand.c": "3e74e5fc57fbbaba68560aa9c1e7a3702f46f2a7097622330f4606528a4b49d4",
+    "loadables/expr.c": "e662827b6bba279a46e35390760295b2c4846808c2ae4f168445c615e8cbd46a",
+    "loadables/fold.c": "dfe1cff3ab54c9d67dd2f62181718ba71a95bd15f3f32e9f70e9b607c783a6d4",
+    "loadables/hostid.c": "e1af75bad46522702580f4589dcb39da9e377d4d4c8cad4f1f10322549af80d4",
+    "loadables/hostname.c": "9aaa70b837d9671543d276e18f25a7f13ad8cc6346aacfd3f38bd105d40fcc10",
+    "loadables/join.c": "5e568a705e73dbf9bf3bf4ba84415a5baf926a00f9b266b4898c50a44586d75c",
+    "loadables/link.c": "df92f534cd760069be89efc2c97222b1b8a8e724c296338ad7121c435a864095",
+    "loadables/ls.c": "10d749c8ff7d5a115c8859d086e1a45f309ed62741f2e5d4f55e6e7be6b2c91c",
+    "loadables/mv.c": "739473547a4e84bf341e0bea8f0d4c86fbc2e1330228cef4281993a2badbc44c",
+    "loadables/nl.c": "20603a66380d5fc5f717d921bd2d2a8443e6d31ccec53726d2f1bfa5be696e91",
+    "loadables/od.c": "de464ab80ccd0bc0c5b78efbb4f3611f4664dfc4e1e0179861cc0275fafb2916",
+    "loadables/paste.c": "8463d5cb02316672fd55dc36e528f842092e4c0f31a17afa8cb78306378e5db6",
+    "loadables/pr.c": "2a89bfdc97ce8a13a94e233f32329f8b4448b0f272e0a76a050e84e7f9679db6",
+    "loadables/readlink.c": "737aa56b9c9c0c07f3ee51257eb3d9a30cfaae3378748c219dc264a0140f0ba5",
+    "loadables/seq.c": "9615a133778d355d2623ae140778482d95e50536abb4c4e8e1cef29e31f61adc",
+    "loadables/sort.c": "5bf8f18e4e8b852f1980ea18c76b4aa6cd80ec90df1795522cec7483ac9f73aa",
+    "loadables/split.c": "61eb1fb067715d4dd28d0e0df1913f44bc61cb8be764d1f12a8a183b608ba173",
+    "loadables/tac.c": "ddee3bf733228935da7ac8a1485a8fd6ffa2954b9f95978607b782e60a3df512",
+    "loadables/tail.c": "dda1dd23d7abd1e9c240f8e678f571a0ecfa1e1bd65dbc1d5747ac7e07ceedc6",
+    "loadables/touch.c": "7fcf856356b9c5c266e596fe34843b17f209295dae1dea10f60f8899721d275d",
+    "loadables/tr.c": "3fc9921d214efe379cf323e13096549aa6c265b63d2f17d71bbd3f61b30d30da",
+    "loadables/truncate.c": "c09ba81100da8ef71366438878bbb4f013a287beddccde26acc7338546c13cd2",
+    "loadables/unexpand.c": "9df8e7f1ea1705764ce24d1d90f5cd302b5ba568f62c6463f885d71349b950bb",
+    "loadables/uniq.c": "38048474bcb653b44de8f48d212741de8581ee9852ee65f68cb6a204e01a999a",
+    "loadables/wc.c": "5163bad4e36c5882e0f4eb8bcc09fef2b7ec4d74c5e14d603cd4e208a501725d",
+    "loadables/who.c": "1010d35614c011392fe14c74f10cbe798b636f1f33678b26de1253c6c8975722",
+    "loadables/coreutils.c": "9dcbb389a5314cfcf1fa839a0a4062c383735ff329b0681ec4b5abc715825c1b"
+  },
+  "commands": {
+    "chgrp": {
+      "source": "loadables/chgrp.c",
+      "symbol": "chgrp_struct"
+    },
+    "chown": {
+      "source": "loadables/chown.c",
+      "symbol": "chown_struct"
+    },
+    "comm": {
+      "source": "loadables/comm.c",
+      "symbol": "bashcomm_struct"
+    },
+    "cp": {
+      "source": "loadables/cp.c",
+      "symbol": "bashcp_struct"
+    },
+    "csplit": {
+      "source": "loadables/csplit.c",
+      "symbol": "csplit_struct"
+    },
+    "date": {
+      "source": "loadables/date.c",
+      "symbol": "bashdate_struct"
+    },
+    "dd": {
+      "source": "loadables/dd.c",
+      "symbol": "bashdd_struct"
+    },
+    "df": {
+      "source": "loadables/df.c",
+      "symbol": "bashdf_struct"
+    },
+    "du": {
+      "source": "loadables/du.c",
+      "symbol": "bashdu_struct"
+    },
+    "expand": {
+      "source": "loadables/expand.c",
+      "symbol": "expand_struct"
+    },
+    "expr": {
+      "source": "loadables/expr.c",
+      "symbol": "expr_struct"
+    },
+    "fold": {
+      "source": "loadables/fold.c",
+      "symbol": "bashfold_struct"
+    },
+    "hostid": {
+      "source": "loadables/hostid.c",
+      "symbol": "hostid_struct"
+    },
+    "hostname": {
+      "source": "loadables/hostname.c",
+      "symbol": "bashhostname_struct"
+    },
+    "join": {
+      "source": "loadables/join.c",
+      "symbol": "join_struct"
+    },
+    "link": {
+      "source": "loadables/link.c",
+      "symbol": "bashlink_struct"
+    },
+    "ls": {
+      "source": "loadables/ls.c",
+      "symbol": "bashls_struct"
+    },
+    "mv": {
+      "source": "loadables/mv.c",
+      "symbol": "bashmv_struct"
+    },
+    "nl": {
+      "source": "loadables/nl.c",
+      "symbol": "bashnl_struct"
+    },
+    "od": {
+      "source": "loadables/od.c",
+      "symbol": "bashod_struct"
+    },
+    "paste": {
+      "source": "loadables/paste.c",
+      "symbol": "bashpaste_struct"
+    },
+    "pr": {
+      "source": "loadables/pr.c",
+      "symbol": "pr_struct"
+    },
+    "readlink": {
+      "source": "loadables/readlink.c",
+      "symbol": "bashreadlink_struct"
+    },
+    "seq": {
+      "source": "loadables/seq.c",
+      "symbol": "seq_struct"
+    },
+    "sort": {
+      "source": "loadables/sort.c",
+      "symbol": "sort_struct"
+    },
+    "split": {
+      "source": "loadables/split.c",
+      "symbol": "split_struct"
+    },
+    "tac": {
+      "source": "loadables/tac.c",
+      "symbol": "tac_struct"
+    },
+    "tail": {
+      "source": "loadables/tail.c",
+      "symbol": "bashtail_struct"
+    },
+    "touch": {
+      "source": "loadables/touch.c",
+      "symbol": "bashtouch_struct"
+    },
+    "tr": {
+      "source": "loadables/tr.c",
+      "symbol": "bashtr_struct"
+    },
+    "truncate": {
+      "source": "loadables/truncate.c",
+      "symbol": "bashtruncate_struct"
+    },
+    "unexpand": {
+      "source": "loadables/unexpand.c",
+      "symbol": "unexpand_struct"
+    },
+    "uniq": {
+      "source": "loadables/uniq.c",
+      "symbol": "bashuniq_struct"
+    },
+    "wc": {
+      "source": "loadables/wc.c",
+      "symbol": "bashwc_struct"
+    },
+    "who": {
+      "source": "loadables/who.c",
+      "symbol": "who_struct"
+    },
+    "coreutils": {
+      "source": "loadables/coreutils.c",
+      "symbol": "coreutils_struct"
+    },
+    "shuf": {
+      "source": "loadables/coreutils.c",
+      "symbol": "coreutils_struct",
+      "subcommand": "shuf"
+    },
+    "factor": {
+      "source": "loadables/coreutils.c",
+      "symbol": "coreutils_struct",
+      "subcommand": "factor"
+    },
+    "yes": {
+      "source": "loadables/coreutils.c",
+      "symbol": "coreutils_struct",
+      "subcommand": "yes"
+    },
+    "fmt": {
+      "source": "loadables/coreutils.c",
+      "symbol": "coreutils_struct",
+      "subcommand": "fmt"
+    },
+    "tsort": {
+      "source": "loadables/coreutils.c",
+      "symbol": "coreutils_struct",
+      "subcommand": "tsort"
+    },
+    "nproc": {
+      "source": "loadables/coreutils.c",
+      "symbol": "coreutils_struct",
+      "subcommand": "nproc"
+    },
+    "numfmt": {
+      "source": "loadables/coreutils.c",
+      "symbol": "coreutils_struct",
+      "subcommand": "numfmt"
+    },
+    "shred": {
+      "source": "loadables/coreutils.c",
+      "symbol": "coreutils_struct",
+      "subcommand": "shred"
+    },
+    "groups": {
+      "source": "loadables/coreutils.c",
+      "symbol": "coreutils_struct",
+      "subcommand": "groups"
+    },
+    "install": {
+      "source": "loadables/coreutils.c",
+      "symbol": "coreutils_struct",
+      "subcommand": "install"
+    },
+    "mknod": {
+      "source": "loadables/coreutils.c",
+      "symbol": "coreutils_struct",
+      "subcommand": "mknod"
+    }
+  }
+}

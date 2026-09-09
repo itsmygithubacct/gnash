@@ -1,0 +1,62 @@
+[
+  {
+    "package": "base64-simd",
+    "version": "0.8.0",
+    "url": "https://raw.githubusercontent.com/Nugine/simd/d74c030d9dc4f3cae02146d1f497ff62726ef09a/LICENSE",
+    "file": "base64-simd-0.8.0.txt",
+    "sha256": "71674605ec4c087fe9eb534e3e4f9e26eb2e4aabcd76a29fd156c6a844d44b3d"
+  },
+  {
+    "package": "blake2b_simd",
+    "version": "1.0.5",
+    "url": "https://raw.githubusercontent.com/oconnor663/blake2_simd/47714dc3c424e82213d7f2eb4a833e3843017be5/LICENSE",
+    "file": "blake2b_simd-1.0.5.txt",
+    "sha256": "27e0387973d6b8507cb15f825f6f26e0278d4d5857082c1f56b49a7b39a90183"
+  },
+  {
+    "package": "defmt-parser",
+    "version": "1.0.0",
+    "url": "https://raw.githubusercontent.com/knurling-rs/defmt/4a8cdb44891ed57b8ff5a023b6bec7137c48708f/LICENSE-MIT",
+    "file": "defmt-parser-1.0.0.txt",
+    "sha256": "2710a622a896bba67356913d4d0492cab5465f61b2ecce6d880aeb483834fb50"
+  },
+  {
+    "package": "fluent-langneg",
+    "version": "0.13.1",
+    "url": "https://raw.githubusercontent.com/projectfluent/fluent-langneg-rs/7fdc590466ea63ca2367ac10fb1b881fe561f1a8/LICENSE-MIT",
+    "file": "fluent-langneg-0.13.1.txt",
+    "sha256": "016fcc02048817d628b04b140c54db290fd9d29a5e8a55b77871194e810716ac"
+  },
+  {
+    "package": "utf8-chars",
+    "version": "3.0.7",
+    "url": "https://github.com/A1-Triard/utf8-chars/tree/9e35858ccf96914d4eb00c8d31be907e6487cbe4",
+    "file": "utf8-chars-3.0.7-NOTICE.txt",
+    "sha256": "ba33b39363920ed772ecaf7236050c6fb02d04cc2de30777411529c5a65bf003",
+    "note": "Prepared attribution and license-declaration extract; the public author handle is retained. Contact details and unrelated package metadata are omitted. Apache-2.0 chosen.",
+    "upstream_file": "Cargo.toml",
+    "upstream_sha256": "f9ccd6ca723dc7ff7b4d08716a4826229f3664e2947d7e0960385dea00838872"
+  },
+  {
+    "package": "vsimd",
+    "version": "0.8.0",
+    "url": "https://raw.githubusercontent.com/Nugine/simd/d74c030d9dc4f3cae02146d1f497ff62726ef09a/LICENSE",
+    "file": "vsimd-0.8.0.txt",
+    "sha256": "71674605ec4c087fe9eb534e3e4f9e26eb2e4aabcd76a29fd156c6a844d44b3d"
+  },
+  {
+    "package": "utf8-chars",
+    "version": "3.0.7",
+    "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+    "file": "Apache-2.0.txt",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "note": "Standard Apache-2.0 license text for the choice explicitly offered in the crate manifest."
+  },
+  {
+    "package": "intl_pluralrules",
+    "version": "7.0.2",
+    "url": "https://raw.githubusercontent.com/zbraniecki/pluralrules/d0715d5b7cca72e228d6e6c4de154bd30dfdd06a/intl_pluralrules/LICENSE-MIT",
+    "file": "intl_pluralrules-7.0.2.txt",
+    "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+  }
+]
