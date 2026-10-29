@@ -1,46 +1,47 @@
 {
   "repository": "https://github.com/itsmygithubacct/bash-os",
-  "revision": "3ca562b0eb97060e29cf0f971369dea93792d4b3",
+  "revision": "955f9c93ebaadf13adedeb446e9e2e6f5d442a95",
   "license": "MIT",
   "files": {
     "LICENSE": "42e3e90ed64a2d0c9f1f60f84030592d8260e8dc322a9de1ce8731c255d4ab9d",
     "loadables/common/bl-output.h": "7d213772ed8f19cc0e1a53f2c27aedb2fde49fba092b97fbcbca73d510123fd4",
-    "loadables/chgrp.c": "0fe499250cbb353116727261fe98460b7c23511c955807d6fe62c27b1d66d416",
-    "loadables/chown.c": "a715f274dbc51985c4e1ca821cf17069204d4325f67316b0459fb193809053e6",
-    "loadables/comm.c": "d3ea96345b3de8318faef6d624f7193cea380d18a84596d70fb000ed1c57e1c0",
-    "loadables/cp.c": "7d772891d0653a8a0ee13c72687553e68658affd0140ed16b0b83603098fe19d",
-    "loadables/csplit.c": "a37bd099c3cbcd84383f0e93b2dcd952fc2890fe4c23a8b92c73b79805f7b2bf",
-    "loadables/date.c": "61d55e836b884078e7b67fe092c7189fd8844b1e2df7637bdf7c33ca507efad5",
-    "loadables/dd.c": "90e1bae7c231e21d074ef19173aa72afb5c532de40c8a194afa7c249dc48afff",
-    "loadables/df.c": "708d5c489c93a1a7a22584b77f4ec43187057d201063bf6644ef05201a22be09",
-    "loadables/du.c": "b59822933703323566b40e4b5b31d6c3978959cf3dc127f345cdf63a0bb55f46",
-    "loadables/expand.c": "3e74e5fc57fbbaba68560aa9c1e7a3702f46f2a7097622330f4606528a4b49d4",
-    "loadables/expr.c": "e662827b6bba279a46e35390760295b2c4846808c2ae4f168445c615e8cbd46a",
-    "loadables/fold.c": "dfe1cff3ab54c9d67dd2f62181718ba71a95bd15f3f32e9f70e9b607c783a6d4",
-    "loadables/hostid.c": "e1af75bad46522702580f4589dcb39da9e377d4d4c8cad4f1f10322549af80d4",
+    "loadables/common/nl-regex.h": "e7f85bee90d0b5cfffd5807bf5bf7cef89d402d885b4bd0d96e33fef1a3ea6e7",
+    "loadables/chgrp.c": "6ebb29e28cfc035279cafc5a389c629d839ac83df0c2127deec5f956feb9409d",
+    "loadables/chown.c": "b8db522b765aaf284c1b1421b4c2cf3f7d80e3472504a1a843f90b037868bb24",
+    "loadables/comm.c": "cc18fcf0a3eac1e7ed6c2b72eea09bf3ac1251b61ccc2aa67d396cd5152dccc1",
+    "loadables/cp.c": "3c67445db5bc578cdb61c435fe1e9f575feece930c49f17238f88dcf23d6a14d",
+    "loadables/csplit.c": "c59fca29da5e451197058e8e26368a7e05d6924000692ebd0812a4ca62b46ae7",
+    "loadables/date.c": "fc6dbae08cc44c6481d0f0ce1eda794559eff47d804029fddd988cebb05ca4bb",
+    "loadables/dd.c": "ddfc33eee29f203e4eee244241b10573e0a55e1268615d5c50b314be02a93420",
+    "loadables/df.c": "74b16a371721df445beaeef3ff34e8e91942dd52fadb536c24d9ff5277c60d8f",
+    "loadables/du.c": "d9e3b0c460953c2f7a83db5b3b5040e0a8de064962e4110605473ca4322356ba",
+    "loadables/expand.c": "4796eccfcc5766a88b29a33c9f4eac21ee3fd3b1c5149a26d9e9fa75b4fdd4e1",
+    "loadables/expr.c": "ca23d98d674759760c1b8541a318252bc940728e44f3a754058ce58ae2f677fe",
+    "loadables/fold.c": "e4917d662d8c6849e1536f167e7f868916c5184a5e2c36b8060c5d021981f2ab",
+    "loadables/hostid.c": "1e706b6c0917823a776f68f693414ec7854d913fc6252eadd9df0fb92c935b0f",
     "loadables/hostname.c": "9aaa70b837d9671543d276e18f25a7f13ad8cc6346aacfd3f38bd105d40fcc10",
-    "loadables/join.c": "5e568a705e73dbf9bf3bf4ba84415a5baf926a00f9b266b4898c50a44586d75c",
-    "loadables/link.c": "df92f534cd760069be89efc2c97222b1b8a8e724c296338ad7121c435a864095",
+    "loadables/join.c": "52d110992b02f34cd78c063f60ddb19e15aa0331d26c171b7ea299c30513ad35",
+    "loadables/link.c": "b3467a0aa47112a69223b8d010cec70e00d772eed43d0cab75be463178bfeda2",
     "loadables/ls.c": "10d749c8ff7d5a115c8859d086e1a45f309ed62741f2e5d4f55e6e7be6b2c91c",
-    "loadables/mv.c": "739473547a4e84bf341e0bea8f0d4c86fbc2e1330228cef4281993a2badbc44c",
-    "loadables/nl.c": "20603a66380d5fc5f717d921bd2d2a8443e6d31ccec53726d2f1bfa5be696e91",
-    "loadables/od.c": "de464ab80ccd0bc0c5b78efbb4f3611f4664dfc4e1e0179861cc0275fafb2916",
-    "loadables/paste.c": "8463d5cb02316672fd55dc36e528f842092e4c0f31a17afa8cb78306378e5db6",
-    "loadables/pr.c": "2a89bfdc97ce8a13a94e233f32329f8b4448b0f272e0a76a050e84e7f9679db6",
+    "loadables/mv.c": "7e6fc0757eadb7b29f01f4baafc1787b913209b9604c18c28d8bffb6f09efa79",
+    "loadables/nl.c": "ae2dcc4dc23b0116e695099e6660952b39d3a3a6e2041293f98e7d0ae9b859ec",
+    "loadables/od.c": "7aeb916f89d4af3e1b53882ef1b14e37726480872751e63785a254634899f590",
+    "loadables/paste.c": "99515e635cac660036544bd22395dfd99fa07e658bc07f0e2ad097d7380378f2",
+    "loadables/pr.c": "4e48e7821b8f98a5a2d23e5340faf3c30b6a8c03eb65d9ddd9d357ec4bd1976d",
     "loadables/readlink.c": "737aa56b9c9c0c07f3ee51257eb3d9a30cfaae3378748c219dc264a0140f0ba5",
     "loadables/seq.c": "9615a133778d355d2623ae140778482d95e50536abb4c4e8e1cef29e31f61adc",
-    "loadables/sort.c": "5bf8f18e4e8b852f1980ea18c76b4aa6cd80ec90df1795522cec7483ac9f73aa",
-    "loadables/split.c": "61eb1fb067715d4dd28d0e0df1913f44bc61cb8be764d1f12a8a183b608ba173",
-    "loadables/tac.c": "ddee3bf733228935da7ac8a1485a8fd6ffa2954b9f95978607b782e60a3df512",
-    "loadables/tail.c": "dda1dd23d7abd1e9c240f8e678f571a0ecfa1e1bd65dbc1d5747ac7e07ceedc6",
-    "loadables/touch.c": "7fcf856356b9c5c266e596fe34843b17f209295dae1dea10f60f8899721d275d",
-    "loadables/tr.c": "3fc9921d214efe379cf323e13096549aa6c265b63d2f17d71bbd3f61b30d30da",
-    "loadables/truncate.c": "c09ba81100da8ef71366438878bbb4f013a287beddccde26acc7338546c13cd2",
-    "loadables/unexpand.c": "9df8e7f1ea1705764ce24d1d90f5cd302b5ba568f62c6463f885d71349b950bb",
-    "loadables/uniq.c": "38048474bcb653b44de8f48d212741de8581ee9852ee65f68cb6a204e01a999a",
-    "loadables/wc.c": "5163bad4e36c5882e0f4eb8bcc09fef2b7ec4d74c5e14d603cd4e208a501725d",
-    "loadables/who.c": "1010d35614c011392fe14c74f10cbe798b636f1f33678b26de1253c6c8975722",
-    "loadables/coreutils.c": "9dcbb389a5314cfcf1fa839a0a4062c383735ff329b0681ec4b5abc715825c1b"
+    "loadables/sort.c": "727dcdd598416e44382bbd2d8be74b7b77f87d29c24652d832d043ce6f7def90",
+    "loadables/split.c": "27e937a8d4d433a0cb46548688d97137d4e21851a0e0a69623534c6d1b5545de",
+    "loadables/tac.c": "b17744a29c99ece33269a499711729517d576848d454bf350a1ecfafdc86e9a3",
+    "loadables/tail.c": "f06fbd5532068dc5d05faa962f83017f2404efcce64d3da01ed81b6b2f482bc8",
+    "loadables/touch.c": "9f1e8d5717c2568a0500bc06d5f77a958f0e5b0666eb3d6250bef230951bc790",
+    "loadables/tr.c": "5869efd714867d7b05d358ada3107e0604eecf602b09e7a6e97379cf80dd83d9",
+    "loadables/truncate.c": "eeae93a06adce0df10cb22493edb02031deaa00be0d69fa727e7ca29e774ef22",
+    "loadables/unexpand.c": "ba7655ab4fd4e7a181361f0d05ed8afee146898e07b9f2dbc054928e719fd7db",
+    "loadables/uniq.c": "cca938949e03e35e7837cc484ce79ba82ac156dc65af7691e3de0915ef655818",
+    "loadables/wc.c": "c0a2d208f9f7b0cb61a06aa197253e733904b9b13d1fee04d31201aaf945c035",
+    "loadables/who.c": "92a52c42a6683059a9f434f175e882c43c82c7263f5cd85bda51024c379bf843",
+    "loadables/coreutils.c": "72421bbb41cd14f8be7b5dd6c7ce0a753cbcbe7e21db589e4820a35914670ace"
   },
   "commands": {
     "chgrp": {
@@ -153,7 +154,7 @@
     },
     "tail": {
       "source": "loadables/tail.c",
-      "symbol": "bashtail_struct"
+      "symbol": "tail_struct"
     },
     "touch": {
       "source": "loadables/touch.c",
@@ -242,5 +243,8 @@
       "symbol": "coreutils_struct",
       "subcommand": "mknod"
     }
+  },
+  "file_licenses": {
+    "loadables/common/nl-regex.h": "MIT AND BSD-2-Clause"
   }
 }

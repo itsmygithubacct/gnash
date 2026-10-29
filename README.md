@@ -7,7 +7,7 @@ command modules. This first iteration supplies coreutils from the MIT portions o
 
 ## Build and run
 
-Requires Linux with `/proc` and `memfd_create`, a recent stable Rust toolchain,
+Requires Linux with `/proc` and `memfd_create`, Rust 1.89 or newer,
 Python 3.11+, a C compiler, and the usual native build tools. The initial build was
 verified with Rust 1.98.1 on x86_64 Linux.
 
@@ -48,9 +48,13 @@ python3 scripts/package-gnash.py create
 python3 scripts/package-gnash.py verify out/dist/gnash-0.1.0-x86_64-unknown-linux-gnu.tar.gz
 ```
 
-The archive and SHA-256 checksum are written to `out/dist/`. Extract the archive
-and run `./gnash` inside its directory. Keep its `lib/`, `licenses/`, and
-documentation together. The included native ABI header can be used to build modules.
+The archive and SHA-256 checksum are written to `out/dist/`. The build records
+`out/PROVENANCE.json`. Packaging refuses a layout whose binaries or source inputs,
+including Rust code and dependencies, no longer match that stamp. A dirty tree
+is identified by a source fingerprint instead of a source commit.
+`--tag` requires a clean tree at the build commit. Extract the archive and run
+`./gnash` inside its directory. Keep its `lib/`, `licenses/`, and documentation
+together. The included native ABI header can be used to build modules.
 Cargo registry and container publication are disabled.
 
 ## Runtime modules
@@ -86,12 +90,13 @@ existing limitations remain, including `wait PID`; plain `wait` works.
 ## Sources and licenses
 
 - Brush base: `fca2095ccc49fed0949924cbaf1433c44b61c164`, preserved in the source notices.
-- bash-os: `3ca562b0eb97060e29cf0f971369dea93792d4b3`, selected files in
-  [vendor/bash-os](vendor/bash-os/manifest.json), unchanged and SHA-256 checked.
+- bash-os: `work/0.1.3` at `955f9c93ebaadf13adedeb446e9e2e6f5d442a95`, selected files
+  in [vendor/bash-os](vendor/bash-os/manifest.json), unchanged and SHA-256 checked.
 - uutils crates: version 0.10.0, resolved versions and checksums in `Cargo.lock`.
 
-Gnash, brush, the selected bash-os sources, and uutils are MIT licensed. Their
-dependencies retain their own permissive licenses. The build verifies a permissive
+Gnash, brush, the selected bash-os commands, and uutils are MIT licensed. The `nl`
+regex fallback retains musl's MIT and TRE's BSD-2-Clause notices. Dependencies
+retain their own permissive licenses. The build verifies a permissive
 license choice for every package in the Linux normal/build dependency graph and
 collects notices in `out/licenses/`. Upstream test tooling has MPL dependencies;
 they are excluded from the delivered binaries. No GNU Bash code or headers, GPL
@@ -104,6 +109,10 @@ See [LICENSE](LICENSE), [third-party notes](licenses/README.md), and the preserv
 
 ```sh
 python3 tests/gnash/test_loadables.py
+python3 tests/gnash/test_native_review.py
+python3 tests/gnash/test_adapter_review.py
+python3 tests/gnash/test_packaging_review.py
+python3 tests/gnash/test_sanitizers.py
 python3 scripts/vendor-bash-os.py
 python3 scripts/audit-licenses.py
 cargo fmt --all --check

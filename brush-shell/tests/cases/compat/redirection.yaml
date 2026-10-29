@@ -1,5 +1,21 @@
 name: "Redirection"
 cases:
+  - name: "External command sees moved standard descriptor"
+    stdin: |
+      /bin/sh -c 'printf hidden; printf saved >&3' 3>&1- 2>/dev/null
+      echo "status:$?"
+      /bin/echo same 1>&1-
+
+  - name: "Exec persists a closed standard descriptor"
+    ignore_stderr: true
+    stdin: |
+      exec 3>&1
+      exec 1>&-
+      /usr/bin/seq 1 1
+      result=$?
+      exec 1>&3 3>&-
+      echo "status:$result"
+
   - name: "Redirection to null"
     stdin: |
       echo hi >/dev/null

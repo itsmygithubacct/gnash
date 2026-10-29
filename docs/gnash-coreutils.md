@@ -2,9 +2,16 @@
 
 103 command names: 47 from the MIT bash-os sources, 50 from MIT uutils, and 6 existing brush shell builtins.
 
+The bash-os commands are pinned to `work/0.1.3` commit
+`955f9c93ebaadf13adedeb446e9e2e6f5d442a95`. This refresh includes upstream fixes for
+`dd` reblocking and seek handling, `split` input aliases, `mv` destination
+collisions and directory names, and `cp` no-clobber handling.
+
 The source implementations remain selectable: `enable -f /path/to/uutils.so cp` loads the uutils variant, and `enable -f /path/to/bash-os-coreutils.so cp` loads the bash-os variant. This explicit choice can replace an existing shell builtin; automatic loading preserves shell builtins.
 
-bash-os implements its upstream option sets. Help is available with `COMMAND --help`; the adapter handles that option using upstream documentation. The `coreutils` name retains the upstream twelve-command multiplexer in addition to individual names.
+bash-os implements its upstream option sets. Help is available with `COMMAND --help` when that is the only argument; the adapter handles that option using upstream documentation. `coreutils --help` prints the twelve-verb bundle listing. A direct name such as `fmt --help` prints that verb's usage line from the same manual, which is the implemented option set rather than the full GNU surface. The `coreutils` name retains the upstream twelve-command multiplexer in addition to individual names.
+
+A failed write to standard output is a status 1 error. The bash-os adapter reports `write error` when the command itself did not already return failure. Commands that already diagnosed the failure keep that diagnostic. This is not a claim of complete GNU diagnostics.
 
 For example, both shipped `fmt` implementations wrap `one two three four` at width 10 as `one two` / `three four`. GNU fmt on the validation host instead produced `one two` / `three` / `four`. The availability of a uutils variant does not imply exact GNU parity for every option.
 

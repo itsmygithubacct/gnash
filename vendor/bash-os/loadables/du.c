@@ -282,9 +282,17 @@ bdu_walk (const char *path, int depth, dev_t root_dev, const bdu_opts *o, int *e
     /* GNU du also deduplicates symlink aliases when -H/-L dereferences them. */
     int seen = 0;
     int alias_target = bdu_key_has (bdu_alias, bdu_alias_cap, st.st_dev, st.st_ino);
-    if (!o->count_links && !S_ISDIR (st.st_mode) && (st.st_nlink > 1 || alias_target || followed_symlink)) {
+    /* Under -L, remember ordinary files before a later symlink can name
+       them too. Discovering aliases only when visiting the link is too late. */
+    if (!o->count_links && !S_ISDIR (st.st_mode)
+        && (o->dereference == 2 || st.st_nlink > 1 || alias_target || followed_symlink)) {
         seen = bdu_seen_add (st.st_dev, st.st_ino);
         if (seen == 1) return 0;  /* already counted earlier */
+        if (seen < 0) {
+            builtin_error ("%s: cannot allocate file accounting state", path);
+            *err = 1;
+            return 0;
+        }
     }
 
     /* GNU du: in apparent-size mode a node's own contribution is its
@@ -337,7 +345,11 @@ bdu_walk (const char *path, int depth, dev_t root_dev, const bdu_opts *o, int *e
         /* A file encountered during traversal prints only under -a. */
         should_print = (o->aflag && (o->max_depth < 0 || depth <= o->max_depth));
     }
-    if (should_print) bdu_print (total, path, o);
+    if (should_print) {
+        bdu_print (total, path, o);
+        if (ferror (stdout))
+            *err = 1;
+    }
     return total;
 }
 
@@ -573,6 +585,8 @@ du_builtin (WORD_LIST *list)
     }
     if (o.cflag)
         bdu_print (grand_total, "total", &o);
+    if (ferror (stdout))
+        err = 1;
     /* Free seen set. */
     free (bdu_seen);
     bdu_seen = NULL;

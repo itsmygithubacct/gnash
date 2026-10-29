@@ -44,6 +44,35 @@ impl CommandFdInjectionExt for std::process::Command {
     }
 }
 
+/// Closes inherited standard descriptors after other fd mappings have run.
+///
+/// `Stdio::null` would replace the descriptor with `/dev/null`. Callers pass only fds that the
+/// shell explicitly closed. The closure runs in the forked child, so it must not allocate.
+pub(crate) fn close_inherited_stdio(command: &mut std::process::Command, fds: &[ShellFd]) {
+    let mut slots = [0i32; 3];
+    let mut count = 0usize;
+    for fd in fds {
+        if (0..3).contains(fd) && count < slots.len() {
+            slots[count] = *fd;
+            count += 1;
+        }
+    }
+    if count == 0 {
+        return;
+    }
+
+    let close_fds = move || {
+        for slot in slots.into_iter().take(count) {
+            // SAFETY: These standard fd slots must be closed in the child.
+            let _ = unsafe { libc::close(slot) };
+        }
+        Ok(())
+    };
+    // SAFETY: The hook only calls async-signal-safe `close` on plain integer fds.
+    // Hooks run in registration order, after the `inject_fds` hook above.
+    unsafe { command.pre_exec(close_fds) };
+}
+
 /// Extension trait for arranging for commands to take the foreground.
 pub trait CommandFgControlExt {
     /// Arranges for the command to take the foreground when it is executed.

@@ -4,6 +4,11 @@ New gnash code is MIT licensed under the root `LICENSE`, which retains brush's
 copyright notice. Imported bash-os files retain their original notices and have a
 separate full MIT license in `vendor/bash-os/LICENSE`. Source hashes, upstream
 revision, and the C symbol used for each command are in its `manifest.json`.
+The `work/0.1.3` import also includes `loadables/common/nl-regex.h`, the private
+`nl` fallback for platforms without `REG_STARTEND`. Its musl MIT and TRE
+BSD-2-Clause notices are retained in the unmodified header and recorded in the
+manifest's `file_licenses`. The build copies that header to
+`out/licenses/bash-os-nl-regex.h`, which is also required in release archives.
 
 The bash-os repository also uses GPL GNU Bash samples and some LGPL helpers.
 Those files are not imported. The C adapter and public gnash ABI header are original

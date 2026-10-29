@@ -217,40 +217,57 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
         }
     }
 
-    // Redirect stdin, if applicable.
-    match context.try_fd(OpenFiles::STDIN_FD) {
-        Some(OpenFile::Stdin(_)) | None => (),
-        Some(stdin_file) => {
-            let as_stdio: Stdio = stdin_file.try_into()?;
-            cmd.stdin(as_stdio);
+    // Apply stdin, stdout, and stderr. An explicit close must not be treated as inherit:
+    // `try_fd` collapses "closed" and "unspecified" into `None`.
+    let mut closed_stdio = Vec::with_capacity(3);
+    for fd in [
+        OpenFiles::STDIN_FD,
+        OpenFiles::STDOUT_FD,
+        OpenFiles::STDERR_FD,
+    ] {
+        match context.params.standard_stream(context.shell, fd) {
+            interp::StandardStreamAction::Inherit => {}
+            interp::StandardStreamAction::Close => closed_stdio.push(fd),
+            interp::StandardStreamAction::Redirect(file) => {
+                let stdio = stdio_from_open_file(file)?;
+                match fd {
+                    OpenFiles::STDIN_FD => cmd.stdin(stdio),
+                    OpenFiles::STDOUT_FD => cmd.stdout(stdio),
+                    _ => cmd.stderr(stdio),
+                };
+            }
         }
     }
 
-    // Redirect stdout, if applicable.
-    match context.try_fd(OpenFiles::STDOUT_FD) {
-        Some(OpenFile::Stdout(_)) | None => (),
-        Some(stdout_file) => {
-            let as_stdio: Stdio = stdout_file.try_into()?;
-            cmd.stdout(as_stdio);
-        }
-    }
-
-    // Redirect stderr, if applicable.
-    match context.try_fd(OpenFiles::STDERR_FD) {
-        Some(OpenFile::Stderr(_)) | None => {}
-        Some(stderr_file) => {
-            let as_stdio: Stdio = stderr_file.try_into()?;
-            cmd.stderr(as_stdio);
-        }
-    }
-
-    // Inject any other fds.
+    // Inject any other fds. Mappings run before the standard-stream closes so a saved
+    // duplicate (`3>&1 1>&-`) is installed before fd 1 is closed.
     let other_files = context.iter_fds().filter(|(fd, _)| {
         *fd != OpenFiles::STDIN_FD && *fd != OpenFiles::STDOUT_FD && *fd != OpenFiles::STDERR_FD
     });
     cmd.inject_fds(other_files)?;
 
+    #[cfg(unix)]
+    sys::commands::close_inherited_stdio(&mut cmd, &closed_stdio);
+    #[cfg(not(unix))]
+    let _ = closed_stdio;
+
     Ok(cmd)
+}
+
+/// Converts an open file into a child `Stdio`.
+///
+/// On Unix, a stdin/stdout/stderr object that was duplicated onto another slot must be
+/// duplicated again. `Stdio::inherit` would attach the child's own slot instead.
+fn stdio_from_open_file(file: OpenFile) -> Result<Stdio, error::Error> {
+    #[cfg(unix)]
+    if matches!(
+        file,
+        OpenFile::Stdin(_) | OpenFile::Stdout(_) | OpenFile::Stderr(_)
+    ) {
+        let owned = file.try_clone_to_owned()?;
+        return Ok(Stdio::from(owned));
+    }
+    file.try_into()
 }
 
 pub(crate) async fn on_preexecute(
@@ -536,20 +553,25 @@ impl<'a, SE: extensions::ShellExtensions> SimpleCommand<'a, SE> {
         mut self,
         command: &gnash_native::Command,
     ) -> Result<ExecutionSpawnResult, error::Error> {
-        let executable = std::env::current_exe()?;
+        // Execute the running image even when an upgrade replaces or unlinks its path.
+        let executable = Path::new("/proc/self/exe");
         let fd = self
             .params
             .inject_native_module(&self.shell, command.file())?;
         // Keep the user's argv[0], process group, post-execute action, and final argument.
+        // Rust repairs closed fds 0/1/2 before the worker's main. Pass the close mask
+        // explicitly; the worker applies it only after dlopen.
+        let stdio_mask = self.params.closed_stdio_mask(&self.shell);
         let mut worker_args = vec![
             CommandArg::String(gnash_native::WORKER_FLAG.into()),
             CommandArg::String(fd.to_string()),
+            CommandArg::String(stdio_mask.to_string()),
             CommandArg::String(command.name().into()),
         ];
         worker_args.extend(self.args.iter().skip(1).cloned());
         self.args.truncate(1);
         self.args.extend(worker_args);
-        self.execute_via_external(&executable)
+        self.execute_via_external(executable)
     }
 
     fn execute_via_external(self, path: &Path) -> Result<ExecutionSpawnResult, error::Error> {
@@ -607,10 +629,11 @@ pub(crate) fn execute_external_command(
         .is_some_and(|f| f.is_terminal());
 
     // Figure out if we should be setting up a new process group.
-    let new_pg = matches!(
-        context.params.process_group_policy,
-        ProcessGroupPolicy::NewProcessGroup
-    );
+    let new_pg = match context.params.process_group_policy {
+        ProcessGroupPolicy::ShellJobControl => context.shell.options().enable_job_control,
+        ProcessGroupPolicy::NewProcessGroup => true,
+        ProcessGroupPolicy::SameProcessGroup => false,
+    };
 
     // Compose the std::process::Command that encapsulates what we want to launch.
     // argv[0] defaults to context.command_name (the user-facing name of the

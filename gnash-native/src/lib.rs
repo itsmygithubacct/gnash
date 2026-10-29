@@ -56,10 +56,15 @@ unsafe impl Sync for ModuleDescriptor {}
 // SAFETY: Descriptor pointers refer to immutable, process-wide module data.
 unsafe impl Send for ModuleDescriptor {}
 
-/// A loaded module, owning its library handle and an immutable copy of its ELF file.
+/// A loaded module, owning its library handle and an immutable ELF snapshot.
 pub struct Module {
-    _library: libloading::Library,
+    loaded: LoadedModule,
     file: Arc<File>,
+}
+
+/// Library metadata that remains valid after the worker closes its snapshot descriptor.
+struct LoadedModule {
+    _library: libloading::Library,
     commands: BTreeMap<String, RunFunction>,
 }
 
@@ -108,6 +113,28 @@ impl Module {
     }
 
     fn from_file(file: File) -> io::Result<Arc<Self>> {
+        Ok(Arc::new(Self {
+            loaded: LoadedModule::open(&file)?,
+            file: Arc::new(file),
+        }))
+    }
+
+    /// Returns the names provided by this module, in lexical order.
+    pub fn names(&self) -> impl Iterator<Item = &str> {
+        self.loaded.commands.keys().map(String::as_str)
+    }
+
+    /// Acquires a command and its library lifetime.
+    pub fn command(self: &Arc<Self>, name: &str) -> Option<Command> {
+        self.loaded.commands.contains_key(name).then(|| Command {
+            module: Arc::clone(self),
+            name: name.to_owned(),
+        })
+    }
+}
+
+impl LoadedModule {
+    fn open(file: &File) -> io::Result<Self> {
         let path = format!("/proc/self/fd/{}", file.as_raw_fd());
         // SAFETY: Loading native code is the explicit purpose of this API. Callers
         // supply trusted modules conforming to the documented ABI and lifetime contract.
@@ -159,23 +186,9 @@ impl Module {
                 return Err(invalid(format!("duplicate native command: {name}")));
             }
         }
-        Ok(Arc::new(Self {
+        Ok(Self {
             _library: library,
-            file: Arc::new(file),
             commands,
-        }))
-    }
-
-    /// Returns the names provided by this module, in lexical order.
-    pub fn names(&self) -> impl Iterator<Item = &str> {
-        self.commands.keys().map(String::as_str)
-    }
-
-    /// Acquires a command and its library lifetime.
-    pub fn command(self: &Arc<Self>, name: &str) -> Option<Command> {
-        self.commands.contains_key(name).then(|| Command {
-            module: Arc::clone(self),
-            name: name.to_owned(),
         })
     }
 }
@@ -209,8 +222,8 @@ pub fn maybe_dispatch() -> Option<i32> {
 }
 
 fn run_worker(args: &[OsString]) -> io::Result<i32> {
-    let [fd, name, rest @ ..] = args else {
-        return Err(invalid("expected module fd and command name"));
+    let [fd, mask, name, rest @ ..] = args else {
+        return Err(invalid("expected module fd, stdio mask, and command name"));
     };
     let fd: i32 = fd
         .to_str()
@@ -220,11 +233,26 @@ fn run_worker(args: &[OsString]) -> io::Result<i32> {
     if fd < 3 {
         return Err(invalid("module fd must be at least 3"));
     }
-    // Open our own copy; the inherited fd belongs to this private worker protocol.
-    let file = File::open(format!("/proc/self/fd/{fd}"))?;
-    // SAFETY: fd is a private inherited module descriptor, no Rust value owns it.
-    unsafe { libc::close(fd) };
-    let module = Module::from_file(file)?;
+    // Bits 0, 1, and 2 request close of stdin, stdout, and stderr. The parent computes this
+    // because Rust reopens those descriptors onto /dev/null before main.
+    let mask: u8 = mask
+        .to_str()
+        .ok_or_else(|| invalid("invalid stdio mask"))?
+        .parse()
+        .map_err(|_| invalid("invalid stdio mask"))?;
+    if mask > 0b111 {
+        return Err(invalid("invalid stdio mask"));
+    }
+    // Validate CLI input before taking ownership of the inherited descriptor.
+    // SAFETY: F_GETFD only queries the descriptor, including when it is invalid.
+    if unsafe { libc::fcntl(fd, libc::F_GETFD) } < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: fd is open and no threads or other Rust owners exist for this inherited fd.
+    // Take ownership directly so opening a second copy cannot land on a standard fd.
+    let file = unsafe { File::from_raw_fd(fd) };
+    let module = LoadedModule::open(&file)?;
+    drop(file);
     let name_str = name
         .to_str()
         .ok_or_else(|| invalid("invalid command name"))?;
@@ -249,7 +277,15 @@ fn run_worker(args: &[OsString]) -> io::Result<i32> {
     // SAFETY: This runs before threads are created; restoring SIGPIPE matches CLI utilities.
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
     // SAFETY: This worker has no other threads; libc copies the locale setting.
+    // Standard fds are still the parked /dev/null descriptors, so locale setup cannot
+    // reuse a slot the command must observe as closed.
     unsafe { libc::setlocale(libc::LC_ALL, c"".as_ptr()) };
+    for bit in 0u8..3 {
+        if mask & (1u8 << bit) != 0 {
+            // SAFETY: These are the repaired standard descriptors named by the protocol mask.
+            unsafe { libc::close(c_int::from(bit)) };
+        }
+    }
     // SAFETY: argv contains argc writable NUL-terminated strings plus a null sentinel;
     // the owning module and all argument buffers remain live until the call returns.
     let code = unsafe { run(argc, argv.as_mut_ptr()) };

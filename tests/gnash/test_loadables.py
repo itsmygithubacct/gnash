@@ -188,6 +188,94 @@ class NativeTests(unittest.TestCase):
                      'ln -s c symlink; readlink symlink; rm a c symlink; cd ..; rmdir files',
                      b'600\ncon\nc\n', autoload=True)
 
+    def test_move_rejects_colliding_source_names(self):
+        with tempfile.TemporaryDirectory(dir=self.directory) as folder:
+            root = Path(folder)
+            for name in ['a', 'b', 'dest']:
+                (root / name).mkdir()
+            (root / 'a/file').write_bytes(b'first')
+            (root / 'b/file').write_bytes(b'second')
+            result = self.shell(f'cd {Q(folder)}; PATH=; mv a/file b/file dest', autoload=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual((root / 'dest/file').read_bytes(), b'first')
+            self.assertEqual((root / 'b/file').read_bytes(), b'second')
+            self.assertFalse((root / 'a/file').exists())
+
+    def test_move_preserves_directory_name_with_trailing_slash(self):
+        with tempfile.TemporaryDirectory(dir=self.directory) as folder:
+            root = Path(folder)
+            (root / 'source').mkdir()
+            (root / 'dest').mkdir()
+            (root / 'source/file').write_bytes(b'content')
+            self.success(f'cd {Q(folder)}; PATH=; mv source/ dest', b'', autoload=True)
+            self.assertEqual((root / 'dest/source/file').read_bytes(), b'content')
+            self.assertFalse((root / 'source').exists())
+
+    def test_copy_no_clobber_preserves_files_and_symlinks(self):
+        for flags in ['-n', '--no-clobber', '-fn']:
+            for symlink in [False, True]:
+                with self.subTest(flags=flags, symlink=symlink), tempfile.TemporaryDirectory(dir=self.directory) as folder:
+                    root = Path(folder)
+                    (root / 'source').write_bytes(b'new content')
+                    (root / 'original').write_bytes(b'keep content')
+                    target = root / 'target'
+                    if symlink:
+                        target.symlink_to('original')
+                    else:
+                        target.write_bytes(b'keep content')
+                    self.success(f'cd {Q(folder)}; PATH=; cp {flags} source target', b'', autoload=True)
+                    self.assertEqual(target.read_bytes(), b'keep content')
+                    self.assertEqual(target.is_symlink(), symlink)
+
+    def test_split_rejects_output_aliases_of_input(self):
+        for alias in ['same-path', 'hardlink', 'symlink']:
+            with self.subTest(alias=alias), tempfile.TemporaryDirectory(dir=self.directory) as folder:
+                root = Path(folder)
+                source = root / ('xaa' if alias == 'same-path' else 'input')
+                content = b'line\n' * 16000
+                source.write_bytes(content)
+                if alias == 'hardlink':
+                    os.link(source, root / 'xaa')
+                elif alias == 'symlink':
+                    (root / 'xaa').symlink_to(source.name)
+                result = self.shell(f'cd {Q(folder)}; PATH=; split -l 1000 {source.name} x', autoload=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(source.read_bytes(), content)
+
+    def test_dd_seek_preserves_existing_prefix(self):
+        for options, data, expected in [
+            ('bs=1 seek=3', b'XYZ', b'abcXYZ'),
+            ('bs=1 seek=3 count=0', b'', b'abc'),
+            ('bs=1 seek=3 conv=notrunc', b'XYZ', b'abcXYZghij'),
+        ]:
+            with self.subTest(options=options), tempfile.TemporaryDirectory(dir=self.directory) as folder:
+                target = Path(folder) / 'target'
+                target.write_bytes(b'abcdefghij')
+                self.success(f'PATH=; dd of={Q(str(target))} {options} status=none',
+                             b'', autoload=True, data=data)
+                self.assertEqual(target.read_bytes(), expected)
+
+    def test_dd_invalid_offsets_preserve_output(self):
+        for options in ['ibs=2 skip=9223372036854775807', 'obs=2 seek=9223372036854775807']:
+            with self.subTest(options=options), tempfile.TemporaryDirectory(dir=self.directory) as folder:
+                target = Path(folder) / 'target'
+                target.write_bytes(b'keep content')
+                result = self.shell(f'PATH=; dd of={Q(str(target))} {options} status=none',
+                                    autoload=True, data=b'new content')
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(target.read_bytes(), b'keep content')
+
+    def test_dd_unblock_expansion_and_carried_spaces(self):
+        # The sanitizer test also checks the allocation bounds for these inputs.
+        for ibs in [1, 32, 512]:
+            for cbs, data, expected in [
+                (1, b'A' * 512, b'A\n' * 512),
+                (64, b' ' * 63 + b'X', b' ' * 63 + b'X\n'),
+            ]:
+                with self.subTest(ibs=ibs, cbs=cbs):
+                    self.success(f'PATH=; dd ibs={ibs} cbs={cbs} conv=unblock iflag=fullblock status=none',
+                                 expected, autoload=True, data=data)
+
     def test_coreutils_binary_pipeline_and_sigpipe(self):
         self.success('PATH=; head -c 1048576 /dev/zero | cat | wc -c; yes | head -n 2',
                      b'1048576\ny\ny\n', autoload=True)
@@ -235,13 +323,27 @@ class NativeTests(unittest.TestCase):
 
     def test_explicit_provider_selection(self):
         uutils = GNASH.parent / 'lib/gnash/uutils.so'
+        revision = json.loads((ROOT / 'vendor/bash-os/manifest.json').read_text())['revision'][:12]
         self.success('fmt --version; '
                      f'enable -f {Q(str(uutils))} fmt; fmt --version',
-                     b'fmt (gnash bash-os module) 3ca562b0eb97\nMIT License\n'
-                     b'fmt (uutils coreutils) 0.10.0\n', autoload=True)
+                     f'fmt (gnash bash-os module) {revision}\nMIT License\n'.encode()
+                     + b'fmt (uutils coreutils) 0.10.0\n', autoload=True)
 
     def test_c_output_errors_propagate(self):
         self.success('seq 1 100 > /dev/full; echo $?; echo alive', b'1\nalive\n', autoload=True)
+
+    def test_uutils_buffered_output_errors_propagate(self):
+        uutils = GNASH.parent / 'lib/gnash/uutils.so'
+        for name, command in [('printf', 'printf x'), ('echo', 'echo -n x'),
+                              ('printenv', 'printenv -0 GNASH_TEST_VAR')]:
+            with self.subTest(command=command):
+                result = self.success(
+                    f'enable -f {Q(str(uutils))} {name}; '
+                    f'{command} > /dev/full; status=$?; '
+                    '/bin/echo "$status"; /bin/echo alive',
+                    b'1\nalive\n', env={'GNASH_TEST_VAR': 'buffered'})
+                self.assertIn(f'{name}: error flushing stdout:'.encode(), result.stderr)
+                self.assertNotIn(b'brush:', result.stderr)
 
     def test_license_expression_policy(self):
         import importlib.util

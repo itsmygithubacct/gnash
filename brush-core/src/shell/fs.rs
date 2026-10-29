@@ -252,6 +252,17 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
         open_fds: impl Iterator<Item = (ShellFd, openfiles::OpenFile)>,
     ) {
         self.open_files = openfiles::OpenFiles::from(open_fds);
+        // The replacement is a complete descriptor table. Preserve omitted standard
+        // streams as explicit closes so child launches do not inherit the host's fds.
+        for fd in [
+            openfiles::OpenFiles::STDIN_FD,
+            openfiles::OpenFiles::STDOUT_FD,
+            openfiles::OpenFiles::STDERR_FD,
+        ] {
+            if !self.open_files.contains_fd(fd) {
+                self.open_files.remove_fd(fd);
+            }
+        }
     }
 
     pub(crate) const fn persistent_open_files(&self) -> &openfiles::OpenFiles {

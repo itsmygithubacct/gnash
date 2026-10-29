@@ -23,8 +23,12 @@ struct builtin {
 #define EXECUTION_FAILURE 1
 #define EX_USAGE 2
 #define BUILTIN_ENABLED 1
+/* Workers use ordinary process signals, not Bash's in-process longjmp traps. */
+#define QUIT ((void) 0)
 extern volatile sig_atomic_t interrupt_state, terminating_signal;
 void builtin_error(const char *, ...) __attribute__((format(printf, 1, 2)));
+void builtin_warning(const char *, ...) __attribute__((format(printf, 1, 2)));
+const char *shell_version_string(void);
 void builtin_usage(void);
 void builtin_help(void);
 int sh_chkwrite(int);

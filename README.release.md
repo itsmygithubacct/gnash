@@ -1,9 +1,12 @@
 # gnash
 
 This archive contains gnash for x86_64 Linux with glibc, its two native coreutils
-modules, and their license notices. `BUILD-INFO.json` records the source revision,
-compiler, and build host's libc version. Use a Linux installation with compatible
-system libraries.
+modules, and their license notices. `BUILD-INFO.json` records the source revision
+when that revision matches the packaged tree, whether the tree was dirty, the
+source fingerprint, compilers, pinned bash-os revision, artifact checksums, and
+the build host's libc version. Files
+are mode 0644, and the executable and native modules are mode 0755. Use a Linux
+installation with compatible system libraries.
 
 Run `./gnash` from this directory, or add this directory to your `PATH`. Keep
 `gnash`, `lib/`, and `licenses/` together when relocating the installation.

@@ -57,6 +57,63 @@ impl ExecutionParameters {
         Ok(fd)
     }
 
+    /// Resolves one of the standard descriptors for a child process.
+    ///
+    /// An explicit close (`<&-` / `>&-`, or the source of `n>&m-`) is [`StandardStreamAction::Close`].
+    /// The natural stdin, stdout, or stderr object on its own slot is inherited. Any other open
+    /// file, including a standard stream duplicated onto a different slot, is a redirect.
+    pub(crate) fn standard_stream(
+        &self,
+        shell: &Shell<impl extensions::ShellExtensions>,
+        fd: ShellFd,
+    ) -> StandardStreamAction {
+        match self.open_files.fd_entry(fd) {
+            openfiles::OpenFileEntry::NotPresent => StandardStreamAction::Close,
+            openfiles::OpenFileEntry::Open(file) => Self::classify_standard_stream(fd, file),
+            openfiles::OpenFileEntry::NotSpecified => {
+                match shell.persistent_open_files().fd_entry(fd) {
+                    openfiles::OpenFileEntry::NotPresent => StandardStreamAction::Close,
+                    openfiles::OpenFileEntry::Open(file) => {
+                        Self::classify_standard_stream(fd, file)
+                    }
+                    openfiles::OpenFileEntry::NotSpecified => StandardStreamAction::Inherit,
+                }
+            }
+        }
+    }
+
+    /// Bits 0, 1, and 2 mark stdin, stdout, and stderr that a child must close.
+    ///
+    /// The private native worker receives this mask. Rust reopens a closed standard descriptor
+    /// onto `/dev/null` before `main`, so the worker cannot discover the close by inspecting fds.
+    pub(crate) fn closed_stdio_mask(&self, shell: &Shell<impl extensions::ShellExtensions>) -> u8 {
+        let mut mask = 0u8;
+        for (bit, fd) in [
+            (0u8, OpenFiles::STDIN_FD),
+            (1u8, OpenFiles::STDOUT_FD),
+            (2u8, OpenFiles::STDERR_FD),
+        ] {
+            if matches!(self.standard_stream(shell, fd), StandardStreamAction::Close) {
+                mask |= 1u8 << bit;
+            }
+        }
+        mask
+    }
+
+    fn classify_standard_stream(fd: ShellFd, file: &OpenFile) -> StandardStreamAction {
+        let natural = match fd {
+            OpenFiles::STDIN_FD => matches!(file, OpenFile::Stdin(_)),
+            OpenFiles::STDOUT_FD => matches!(file, OpenFile::Stdout(_)),
+            OpenFiles::STDERR_FD => matches!(file, OpenFile::Stderr(_)),
+            _ => false,
+        };
+        if natural {
+            StandardStreamAction::Inherit
+        } else {
+            StandardStreamAction::Redirect(file.clone())
+        }
+    }
+
     /// Returns the standard input file; usable with `write!` et al.
     ///
     /// # Arguments
@@ -189,9 +246,21 @@ impl ExecutionParameters {
     }
 }
 
+/// How a standard stream is presented to a spawned child.
+pub(crate) enum StandardStreamAction {
+    /// Leave the child's existing descriptor in place.
+    Inherit,
+    /// Close the descriptor after other redirections have been duplicated.
+    Close,
+    /// Install a duplicate of this open file.
+    Redirect(OpenFile),
+}
+
 #[derive(Clone, Debug, Default)]
 /// Policy for how to manage spawned external processes.
 pub enum ProcessGroupPolicy {
+    /// Follow the shell's current job-control option when launching the command.
+    ShellJobControl,
     /// Place the process in a new process group.
     #[default]
     NewProcessGroup,
@@ -1816,7 +1885,10 @@ pub(crate) async fn setup_redirect(
                     };
 
                     if expanded.is_empty() {
-                        // Nothing to do
+                        // `n>&-` closes n. An empty word without the dash is a no-op.
+                        if dash {
+                            params.open_files.remove_fd(fd_num);
+                        }
                     } else if expanded.chars().all(|c: char| c.is_ascii_digit()) {
                         let source_fd_num = expanded
                             .parse::<ShellFd>()
@@ -1828,6 +1900,11 @@ pub(crate) async fn setup_redirect(
                         };
 
                         params.open_files.set_fd(fd_num, target_file);
+                        // `n>&m-` moves m onto n and then closes m. Bash leaves the descriptor
+                        // open when n and m name the same fd (`1>&1-`).
+                        if dash && source_fd_num != fd_num {
+                            params.open_files.remove_fd(source_fd_num);
+                        }
                     } else if fd_num == 1 && !dash {
                         // Special case for compatibility: redirect stdout and stderr to the file
                         // given by `expanded`.
@@ -1836,11 +1913,6 @@ pub(crate) async fn setup_redirect(
                         )?;
                     } else {
                         return Err(error::ErrorKind::InvalidRedirection.into());
-                    }
-
-                    if dash {
-                        // Close the specified fd. Ignore it if it's not valid.
-                        params.open_files.remove_fd(fd_num);
                     }
                 }
 

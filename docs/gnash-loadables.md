@@ -28,6 +28,9 @@ The loader validates the complete table and requested names before changing the
 builtin registry. Loading a name again replaces its previous native implementation.
 Shell functions retain their usual precedence; `command NAME` and `builtin NAME`
 invoke the enabled native builtin directly.
+Like Bash, `exec NAME` searches for an external executable; it does not invoke
+shell builtins, including native registrations. Use `NAME` or `command NAME`
+to run an enabled native command.
 
 `enable -n NAME` disables lookup without unloading. `enable NAME` reenables it.
 `enable -d NAME...` removes native registrations, restoring any original static
@@ -46,12 +49,17 @@ memfd loading model. Build for the host architecture and libc.
 ## Execution
 
 The shell routes native commands through its external-process launch machinery.
-It starts its own executable using a private worker flag and passes the sealed
+It starts its running image through `/proc/self/exe` using a private worker flag,
+so an upgrade or removal of the executable path cannot redirect worker startup. It passes the sealed
 module through an unused inherited fd. The worker dispatches before shell options,
 profiles, or the asynchronous runtime are initialized. The launch machinery applies
 the command's cwd, exported environment, redirections, pipeline fds, and process
-group policy. SIGPIPE is reset to its ordinary CLI disposition and libc's locale
-is initialized from the environment.
+group policy. An explicit close of standard input, output, or error is carried in
+the worker protocol. The Rust runtime reopens those descriptors onto `/dev/null`
+before `main`, so the worker closes them only after `dlopen` and locale setup.
+SIGPIPE is reset to its ordinary CLI disposition and libc's locale
+is initialized from the environment. The worker drops its copy of the sealed
+snapshot after `dlopen`.
 
 ABI v1 is for process-style commands. It does not expose parent shell mutation,
 Bash symbols, or Rust objects across the library boundary. A future stateful ABI
@@ -63,7 +71,10 @@ such as `cut -a` or `stat -A` are not part of this version.
 The bash-os module links selected MIT C files, a small original compatibility
 adapter in `loadables/compat`, and a descriptor table generated from the vendor
 manifest. The adapter provides word lists, diagnostics, allocation helpers, and
-the option parsing needed by these sources. GNU Bash headers are not used.
+the option parsing needed by these sources. It also supplies warning diagnostics
+and explicit LIFO cleanup frames for `unexpand`. Signals terminate the worker
+normally; Bash's in-process nonlocal exits are not part of this adapter.
+GNU Bash headers are not used.
 The upstream `coreutils` multiplexer is also exposed as individual command names.
 
 `gnash-coreutils` is a Rust `cdylib` exposing the same C ABI around brush's existing
@@ -75,3 +86,6 @@ Consumers constructing registrations directly must set it to `None` for ordinary
 Rust builtins. `Registration::special` is no longer a const function because a
 registration can own a native module. This is a source API change in the fork;
 the upstream crates and history remain available for future merges.
+`ProcessGroupPolicy::ShellJobControl` follows the current job-control option at
+each launch, including changes from `set -m` and `set +m` inside a script.
+Consumers exhaustively matching that public enum must handle the new variant.

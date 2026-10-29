@@ -33,6 +33,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <sys/stat.h>
 
 #include "loadables.h"
@@ -139,36 +140,36 @@ truncate_builtin (WORD_LIST *list)
             block_mode = 1; list = list->next; continue;
         }
         if (!strcmp (w, "-s")) {
-            if (!list->next) { builtin_error ("-s needs SIZE"); builtin_usage (); return EX_USAGE; }
+            if (!list->next) { builtin_error ("-s needs SIZE"); builtin_usage (); return EXECUTION_FAILURE; }
             list = list->next; sval = list->word->word;
         } else if (!strncmp (w, "--size=", 7)) {
             sval = w + 7;
         } else if (!strcmp (w, "--size")) {
-            if (!list->next) { builtin_error ("--size needs SIZE"); builtin_usage (); return EX_USAGE; }
+            if (!list->next) { builtin_error ("--size needs SIZE"); builtin_usage (); return EXECUTION_FAILURE; }
             list = list->next; sval = list->word->word;
         } else if (!strcmp (w, "-r")) {
-            if (!list->next) { builtin_error ("-r needs REF"); builtin_usage (); return EX_USAGE; }
+            if (!list->next) { builtin_error ("-r needs REF"); builtin_usage (); return EXECUTION_FAILURE; }
             list = list->next; rval = list->word->word;
         } else if (!strncmp (w, "--reference=", 12)) {
             rval = w + 12;
         } else if (!strcmp (w, "--reference")) {
-            if (!list->next) { builtin_error ("--reference needs REF"); builtin_usage (); return EX_USAGE; }
+            if (!list->next) { builtin_error ("--reference needs REF"); builtin_usage (); return EXECUTION_FAILURE; }
             list = list->next; rval = list->word->word;
         } else {
             builtin_error ("unknown flag: %s", w);
             builtin_usage ();
-            return EX_USAGE;
+            return EXECUTION_FAILURE;
         }
 
         if (sval) {
             if (bt_parse_size (sval, &mode, &mag) < 0) {
                 builtin_error ("invalid number: %s", sval);
                 builtin_usage ();
-                return EX_USAGE;
+                return EXECUTION_FAILURE;
             }
             if ((mode == RM_RDN || mode == RM_RUP) && mag == 0) {
                 builtin_error ("division by zero");
-                return EX_USAGE;
+                return EXECUTION_FAILURE;
             }
             got_size = 1;
         }
@@ -180,18 +181,18 @@ truncate_builtin (WORD_LIST *list)
     if (!ref && !got_size) {
         builtin_error ("you must specify either --size or --reference");
         builtin_usage ();
-        return EX_USAGE;
+        return EXECUTION_FAILURE;
     }
     /* GNU: a reference file combined with -s requires a relative modifier. */
     if (ref && got_size && mode == RM_ABS) {
         builtin_error ("you must specify a relative '--size' with '--reference'");
         builtin_usage ();
-        return EX_USAGE;
+        return EXECUTION_FAILURE;
     }
     if (!list) {
         builtin_error ("missing file operand");
         builtin_usage ();
-        return EX_USAGE;
+        return EXECUTION_FAILURE;
     }
 
     /* Resolve the reference base size (used as fsize for relative modes, and
@@ -234,24 +235,56 @@ truncate_builtin (WORD_LIST *list)
                 blocks = (long long) st.st_blksize;
         }
 
-        long long ssize = block_mode ? mag * blocks : mag;
+        long long ssize;
+        if (block_mode) {
+            /* st_blksize is positive; mag * blocks must not wrap. */
+            if (blocks > 1 && mag > 0 && mag > LLONG_MAX / blocks) {
+                builtin_error ("overflow extending size of file %s", path);
+                close (fd); rc = EXECUTION_FAILURE; continue;
+            }
+            if (blocks > 1 && mag < 0 && mag < LLONG_MIN / blocks) {
+                builtin_error ("overflow extending size of file %s", path);
+                close (fd); rc = EXECUTION_FAILURE; continue;
+            }
+            ssize = mag * blocks;
+        } else
+            ssize = mag;
         /* Base size for relative modes: the reference, else the file itself. */
         long long fsize = (ref_size >= 0) ? ref_size : (have_st ? (long long) st.st_size : 0);
-        long long nsize;
+        long long nsize = 0;
+        int overflow = 0;
         switch (mode) {
-            case RM_REL: nsize = fsize + ssize; break;
+            case RM_REL:
+                if (ssize > 0 && fsize > LLONG_MAX - ssize)
+                    overflow = 1;
+                else if (ssize < 0 && fsize < LLONG_MIN - ssize)
+                    overflow = 1;
+                else
+                    nsize = fsize + ssize;
+                break;
             case RM_MIN: nsize = fsize > ssize ? fsize : ssize; break;   /* >= */
             case RM_MAX: nsize = fsize < ssize ? fsize : ssize; break;   /* <= */
             case RM_RDN: nsize = ssize ? fsize - fsize % ssize : fsize; break;
             case RM_RUP: {
                 long long r = ssize ? fsize % ssize : 0;
-                nsize = fsize + (r ? ssize - r : 0);
+                long long add = r ? ssize - r : 0;
+                if (add > 0 && fsize > LLONG_MAX - add)
+                    overflow = 1;
+                else
+                    nsize = fsize + add;
                 break;
             }
             case RM_ABS:
             default:     nsize = ssize; break;
         }
-        if (nsize < 0) nsize = 0;
+        /* GNU: overflow on extend is an error and leaves the file alone.
+           A relative shrink past zero is not overflow; it becomes empty. */
+        if (!overflow && nsize < 0)
+            nsize = 0;
+        if (overflow || (long long) (off_t) nsize != nsize) {
+            builtin_error ("overflow extending size of file %s", path);
+            close (fd); rc = EXECUTION_FAILURE; continue;
+        }
 
         if (ftruncate (fd, (off_t) nsize) < 0) {
             builtin_error ("cannot truncate %s: %s", path, strerror (errno));

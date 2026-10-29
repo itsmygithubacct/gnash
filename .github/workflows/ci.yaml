@@ -62,8 +62,16 @@ jobs:
         run: cargo deny --all-features check all
       - name: Verify pinned upstream sources
         run: python3 scripts/vendor-bash-os.py
+      - name: Test packaging atomicity and provenance
+        run: python3 tests/gnash/test_packaging_review.py
+      - name: Check native C bounds and cleanup
+        run: python3 tests/gnash/test_sanitizers.py
       - name: Build release layout and collect license notices
         run: python3 scripts/build-gnash.py --release
+      - name: Run adapter review suite
+        run: python3 tests/gnash/test_adapter_review.py
+      - name: Run native review suite
+        run: python3 tests/gnash/test_native_review.py
       - name: Package and test relocated release
         run: |
           python3 scripts/package-gnash.py create

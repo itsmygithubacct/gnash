@@ -1,0 +1,12 @@
+name: "Options: set -m"
+cases:
+  - name: "Job control changes during a script"
+    stdin: |
+      probe='/bin/sh'
+      script='set -- $(ps -o pid=,pgid= -p $$); if [ "$1" = "$2" ]; then echo leader; else echo inherited; fi'
+      "$probe" -c "$script"
+      set -m
+      "$probe" -c "$script"
+      set +m
+      "$probe" -c "$script"
+      :

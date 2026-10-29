@@ -51,13 +51,50 @@ bc_read_record (struct bc_line *line, FILE *f, int delim)
     return line->len;
 }
 
+/* Output is buffered so 15k short fwrite calls are not 15k libc trips.
+   /dev/full still fails: a flush writes through to stdout. */
+struct bc_obuf {
+    char buf[65536];
+    size_t n;
+    int *err;
+};
+
 static void
-bc_write_sep (const char *sep)
+bc_ob_flush (struct bc_obuf *o)
+{
+    if (*o->err || o->n == 0)
+        return;
+    if (fwrite (o->buf, 1, o->n, stdout) != o->n || ferror (stdout))
+        *o->err = errno ? errno : EIO;
+    o->n = 0;
+}
+
+static void
+bc_ob_put (struct bc_obuf *o, const char *p, size_t n)
+{
+    if (*o->err)
+        return;
+    while (n) {
+        if (o->n == sizeof o->buf)
+            bc_ob_flush (o);
+        if (*o->err)
+            return;
+        size_t room = sizeof o->buf - o->n;
+        size_t k = n < room ? n : room;
+        memcpy (o->buf + o->n, p, k);
+        o->n += k;
+        p += k;
+        n -= k;
+    }
+}
+
+static void
+bc_write_sep (struct bc_obuf *o, const char *sep)
 {
     if (sep[0] == '\0')
-        fputc ('\0', stdout);
+        bc_ob_put (o, "\0", 1);
     else
-        fputs (sep, stdout);
+        bc_ob_put (o, sep, strlen (sep));
 }
 
 /* Write a line record, guaranteeing a trailing line delimiter. getdelim()
@@ -67,19 +104,21 @@ bc_write_sep (const char *sep)
    line has no newline makes the next column's content run onto the same
    line. */
 static void
-bc_write_record (const char *buf, size_t len, int delim)
+bc_write_record (struct bc_obuf *o, const char *buf, size_t len, int delim)
 {
-    fwrite (buf, 1, len, stdout);
-    if (len == 0 || (unsigned char) buf[len - 1] != (unsigned char) delim)
-        fputc (delim, stdout);
+    bc_ob_put (o, buf, len);
+    if (len == 0 || (unsigned char) buf[len - 1] != (unsigned char) delim) {
+        char d = (char) delim;
+        bc_ob_put (o, &d, 1);
+    }
 }
 
 static void
-bc_prefix (int column, int suppress[3], const char *sep)
+bc_prefix (struct bc_obuf *o, int column, int suppress[3], const char *sep)
 {
     for (int i = 0; i < column - 1; i++)
         if (!suppress[i])
-            bc_write_sep (sep);
+            bc_write_sep (o, sep);
 }
 
 enum bc_order_mode {
@@ -122,24 +161,12 @@ bc_check_order (const struct bc_line *prev, const struct bc_line *cur,
     return mode == BC_ORDER_CHECK ? EXECUTION_FAILURE : EXECUTION_SUCCESS;
 }
 
-static int
-bc_copy_line (struct bc_line *dst, const struct bc_line *src)
+static void
+bc_swap_line (struct bc_line *a, struct bc_line *b)
 {
-    if (src->len < 0) {
-        dst->len = -1;
-        return EXECUTION_SUCCESS;
-    }
-    char *copy = malloc ((size_t)src->len);
-    if (!copy) {
-        builtin_error ("memory allocation failed");
-        return EXECUTION_FAILURE;
-    }
-    memcpy (copy, src->buf, (size_t)src->len);
-    free (dst->buf);
-    dst->buf = copy;
-    dst->cap = (size_t)src->len;
-    dst->len = src->len;
-    return EXECUTION_SUCCESS;
+    struct bc_line tmp = *a;
+    *a = *b;
+    *b = tmp;
 }
 
 static int
@@ -147,8 +174,9 @@ bc_advance (FILE *f, struct bc_line *line, struct bc_line *prev, int file_no,
             int delim, enum bc_order_mode mode, int seen_unpairable,
             int issued[2], int *disorder)
 {
-    if (bc_copy_line (prev, line) != EXECUTION_SUCCESS)
-        return EXECUTION_FAILURE;
+    /* Keep the previous record by swapping reusable getdelim buffers.
+       Copying every line allocated ~15k blocks on the published fixture. */
+    bc_swap_line (prev, line);
 
     ssize_t n = bc_read_record (line, f, delim);
     if (n == -1)
@@ -169,8 +197,10 @@ bc_run (FILE *fa, FILE *fb, int suppress[3], int total_option,
     int issued[2] = {0, 0};
     int disorder = 0;
     int seen_unpairable = 0;
+    int out_err = 0;
+    struct bc_obuf ob = { .n = 0, .err = &out_err };
     /* POSIX column prefixes: col 1 = no tab, col 2 = 1 tab, col 3 = 2 tabs. */
-    while (na != -1 || nb != -1) {
+    while (!out_err && (na != -1 || nb != -1)) {
         int cmp;
         if (na == -1)      cmp =  1;
         else if (nb == -1) cmp = -1;
@@ -178,7 +208,10 @@ bc_run (FILE *fa, FILE *fb, int suppress[3], int total_option,
         if (cmp < 0) {
             seen_unpairable = 1;
             total[0]++;
-            if (!suppress[0]) bc_write_record (la.buf, (size_t)la.len, delim);
+            if (!suppress[0])
+                bc_write_record (&ob, la.buf, (size_t)la.len, delim);
+            if (out_err)
+                break;
             if (bc_advance (fa, &la, &prev_a, 1, delim, order_mode,
                             seen_unpairable, issued, &disorder) != EXECUTION_SUCCESS)
                 goto fail;
@@ -187,9 +220,11 @@ bc_run (FILE *fa, FILE *fb, int suppress[3], int total_option,
             seen_unpairable = 1;
             total[1]++;
             if (!suppress[1]) {
-                bc_prefix (2, suppress, sep);
-                bc_write_record (lb.buf, (size_t)lb.len, delim);
+                bc_prefix (&ob, 2, suppress, sep);
+                bc_write_record (&ob, lb.buf, (size_t)lb.len, delim);
             }
+            if (out_err)
+                break;
             if (bc_advance (fb, &lb, &prev_b, 2, delim, order_mode,
                             seen_unpairable, issued, &disorder) != EXECUTION_SUCCESS)
                 goto fail;
@@ -197,9 +232,11 @@ bc_run (FILE *fa, FILE *fb, int suppress[3], int total_option,
         } else {
             total[2]++;
             if (!suppress[2]) {
-                bc_prefix (3, suppress, sep);
-                bc_write_record (la.buf, (size_t)la.len, delim);
+                bc_prefix (&ob, 3, suppress, sep);
+                bc_write_record (&ob, la.buf, (size_t)la.len, delim);
             }
+            if (out_err)
+                break;
             if (bc_advance (fa, &la, &prev_a, 1, delim, order_mode,
                             seen_unpairable, issued, &disorder) != EXECUTION_SUCCESS)
                 goto fail;
@@ -210,26 +247,37 @@ bc_run (FILE *fa, FILE *fb, int suppress[3], int total_option,
             nb = lb.len;
         }
     }
-    if (total_option)
-        {
-            printf ("%lu", total[0]);
-            bc_write_sep (sep);
-            printf ("%lu", total[1]);
-            bc_write_sep (sep);
-            printf ("%lu", total[2]);
-            bc_write_sep (sep);
-            printf ("total%c", delim);
-        }
+    if (!out_err && total_option) {
+        char tmp[32];
+        int n;
+        n = snprintf (tmp, sizeof tmp, "%lu", total[0]);
+        if (n > 0) bc_ob_put (&ob, tmp, (size_t) n);
+        bc_write_sep (&ob, sep);
+        n = snprintf (tmp, sizeof tmp, "%lu", total[1]);
+        if (n > 0) bc_ob_put (&ob, tmp, (size_t) n);
+        bc_write_sep (&ob, sep);
+        n = snprintf (tmp, sizeof tmp, "%lu", total[2]);
+        if (n > 0) bc_ob_put (&ob, tmp, (size_t) n);
+        bc_write_sep (&ob, sep);
+        bc_ob_put (&ob, "total", 5);
+        { char d = (char) delim; bc_ob_put (&ob, &d, 1); }
+    }
+    bc_ob_flush (&ob);
+    if (!out_err && (fflush (stdout) == EOF || ferror (stdout)))
+        out_err = errno ? errno : EIO;
     /* GNU comm: after a default-mode (warning) disorder, emit a final
        "input is not in sorted order" diagnostic before failing. In
        --check-order mode the run already short-circuited via `goto fail`,
        so this only fires for the warn-then-continue default path. */
-    if (disorder)
+    if (out_err)
+        builtin_error ("write error: %s", strerror (out_err));
+    else if (disorder)
         builtin_error ("input is not in sorted order");
     free (la.buf); free (lb.buf); free (prev_a.buf); free (prev_b.buf);
-    return disorder ? EXECUTION_FAILURE : EXECUTION_SUCCESS;
+    return (out_err || disorder) ? EXECUTION_FAILURE : EXECUTION_SUCCESS;
 
 fail:
+    bc_ob_flush (&ob);
     free (la.buf); free (lb.buf); free (prev_a.buf); free (prev_b.buf);
     return EXECUTION_FAILURE;
 }
@@ -271,7 +319,7 @@ comm_builtin (WORD_LIST *list)
             if (!list->next) {
                 builtin_error ("--output-delimiter needs an argument");
                 builtin_usage ();
-                return EX_USAGE;
+                return EXECUTION_FAILURE;
             }
             const char *newsep = list->next->word->word;
             if (sep_set && strcmp (sep, newsep)) {
@@ -288,7 +336,7 @@ comm_builtin (WORD_LIST *list)
         if (w[1] == '-' && w[2] != '\0') {
             builtin_error ("unknown flag: %s", w);
             builtin_usage ();
-            return EX_USAGE;
+            return EXECUTION_FAILURE;
         }
         for (const char *c = w + 1; *c; c++) {
             switch (*c) {
@@ -299,7 +347,7 @@ comm_builtin (WORD_LIST *list)
                 default:
                     builtin_error ("unknown flag: -%c", *c);
                     builtin_usage ();
-                    return EX_USAGE;
+                    return EXECUTION_FAILURE;
             }
         }
         list = list->next;
@@ -308,20 +356,24 @@ comm_builtin (WORD_LIST *list)
     if (!list) {
         builtin_error ("missing operand");
         builtin_usage ();
-        return EX_USAGE;
+        return EXECUTION_FAILURE;
     }
     if (!list->next) {
         builtin_error ("missing operand after '%s'", list->word->word);
         builtin_usage ();
-        return EX_USAGE;
+        return EXECUTION_FAILURE;
     }
     if (list->next->next) {
         builtin_error ("extra operand '%s'", list->next->next->word->word);
         builtin_usage ();
-        return EX_USAGE;
+        return EXECUTION_FAILURE;
     }
     const char *p1 = list->word->word;
     const char *p2 = list->next->word->word;
+    if (!strcmp (p1, "-") && !strcmp (p2, "-")) {
+        builtin_error ("standard input is listed more than once");
+        return EXECUTION_FAILURE;
+    }
 
     FILE *fa = !strcmp (p1, "-") ? stdin : fopen (p1, "r");
     if (!fa) { builtin_error ("%s: %s", p1, strerror (errno)); return EXECUTION_FAILURE; }
@@ -331,6 +383,10 @@ comm_builtin (WORD_LIST *list)
         builtin_error ("%s: %s", p2, strerror (errno));
         return EXECUTION_FAILURE;
     }
+    if (fa != stdin)
+        setvbuf (fa, NULL, _IOFBF, 65536);
+    if (fb != stdin)
+        setvbuf (fb, NULL, _IOFBF, 65536);
     int rc = bc_run (fa, fb, suppress, total_option, sep, delim, order_mode);
     if (fa != stdin) fclose (fa);
     if (fb != stdin) fclose (fb);
